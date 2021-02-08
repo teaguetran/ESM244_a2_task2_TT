@@ -1,0 +1,242 @@
+---
+title: "Dominant palmetto species (*Serenoa repens* and *Sabal etonia*) in Archbold Biological Station, FL"
+author: "Teague Tran"
+date: "2/7/2021"
+output: 
+  html_document:
+    theme: cerulean
+    code_folding: hide
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(lubridate)
+library(dplyr)
+library(patchwork)
+library(GGally)
+library(broom)
+library(jtools)
+library(kableExtra)
+
+# read in data
+palmetto <- read_csv(here("data", "palmetto.csv"))
+```
+
+## Data Visualization/Exploration
+
+```{r, warning = FALSE, message = FALSE}
+# select species, height, length, width, and green leaf count
+
+selectedattributes_pal <- palmetto %>% 
+  select(species, height, length, width, green_lvs, year) %>% 
+  mutate(species_names = 
+           case_when(
+             species == "1" ~ "Serenoa repens",
+             species == "2" ~ "Sabal etonia")
+         ) 
+# find the mean height by each species
+mean_heights <- selectedattributes_pal %>%
+  group_by(species_names) %>% 
+  summarize(
+    mean_height = mean(height, na.rm = TRUE),
+    sd_height = sd(height, na.rm = TRUE)
+  )
+
+#group by species and year to calculate mean leaf count per recorded year
+mean_leaves <- selectedattributes_pal %>%
+  group_by(species_names, year) %>% 
+  summarize(
+    mean_leaves_count = mean(green_lvs, na.rm = TRUE)
+  )
+#group by species and calculate mean length and width to put in graph
+mean_lw <- selectedattributes_pal %>% 
+  group_by(species_names) %>% 
+  summarize(
+    mean_length = mean(length, na.rm = TRUE),
+    sd_length = sd(length, na.rm = TRUE),
+    mean_width = mean(width, na.rm = TRUE), 
+    sd_width = sd(width, na.rm = TRUE)) 
+
+```
+```{r, warning = FALSE, message = FALSE}
+#Explore the differences between the two species 
+
+#visualize mean height difference between the two species
+palmetto_heights <- ggplot(data = mean_heights, aes(x = species_names, y = mean_height)) +
+  geom_col(fill = c("coral","navy")) + 
+  theme_minimal() +
+  labs(x = " ", y = "mean height (cm)", title = "Mean height of two palmetto species in Archbold Biological Station, FL", subtitle = "(1981-2017)")
+
+#visualize mean leaf count difference between the two species
+palmetto_leaves <- ggplot(data = mean_leaves, aes(x = year, y = mean_leaves_count, color = species_names)) +
+  geom_point(size = 2) +
+  theme_minimal() + 
+  scale_color_manual(values = c("coral", "navy")) +
+  labs(x = "Year", y = "Mean leaf count (# leaves)", title = "Mean leaf count of two palmetto species in Archbold Biological Station, FL", subtitle = "(1981-2017)", color = "Species Names")
+
+#visualize the mean of width between the two species
+
+palmetto_length <- ggplot(data = mean_lw, aes(x = species_names, y = mean_length)) + 
+  geom_col() +
+  geom_col(fill = c("coral","navy")) + 
+  theme_minimal() +
+  labs(x = " ", y = "mean length (cm)", title = "Mean canopy length of two palmetto species in Archbold Biological Station, FL", subtitle = "(1981-2017)")
+
+#visualize the mean of length between the two species
+palmetto_width <- ggplot(data = mean_lw, aes(x = species_names, y = mean_width)) +
+  geom_col() + 
+  geom_col(fill = c("coral","navy")) + 
+  theme_minimal() +
+  labs(x = " ", y = "mean width (cm)", title = "Mean canopy width of two palmetto species in Archbold Biological Station, FL", subtitle = "(1981-2017)")
+#patch the width and length graphs together
+palmetto_lwh_combined <- (palmetto_width / palmetto_length)
+
+```
+
+```{r, warning = FALSE, message = FALSE}
+#display leaves grpah with figure caption under
+palmetto_leaves 
+```
+
+Figure 1. *Serenoa repens* consistently has a higher count of leaves than *Sabal etonia* every year data was recorded. 
+
+```{r, warning = FALSE, message = FALSE}
+#display heights grpah with figure caption under
+palmetto_heights
+```
+
+Figure 2. Mean height of *Sabal etonia* (`r round(mean_heights$mean_height[1], 2)` $\pm$ `r round(mean_heights$sd_height[1], 2)`) is lower than *Serenoa repens* (`r round(mean_heights$mean_height[2], 2)` $\pm$ `r round(mean_heights$sd_height[2], 2)`). 
+
+```{r,warning = FALSE, message = FALSE}
+#display patched graph with figure caption under
+palmetto_lwh_combined
+```
+
+Figure 3. Both mean canopy width and mean canopy length of *Sabal etonia* (`r round(mean_lw$mean_width[1], 2)` $\pm$ `r round(mean_lw$sd_width[1], 2)` and `r round(mean_lw$mean_length[1], 2)` $\pm$ `r round(mean_lw$sd_length[1], 2)` respectively) are higher than the mean canopy width and mean canopy length of *Serenoa repens* (`r round(mean_lw$mean_width[2], 2)` $\pm$ `r round(mean_lw$sd_width[2], 2)` and `r round(mean_lw$mean_length[2], 2)` $\pm$ `r round(mean_lw$sd_length[2], 2)` respectively).
+
+## Binary Logistic Regression
+
+
+```{r, warning = FALSE, message = FALSE}
+# attributes already selected in selectedattributes_pal from part 1
+binlog_pal <- selectedattributes_pal %>% 
+  mutate(species_names = fct_drop(species_names)) 
+# check levels of factors; Sabal etonia = 0, Serenoa repens = 1
+# Used levels to check; used "#" to not show levels(binlog_pal$species_names)
+
+#perform binary logistic regression
+blr_pal <- glm(species_names ~ height + length + width + green_lvs,
+               data = binlog_pal,
+               family = "binomial")
+
+#let's take a look at the blr! 
+# blr_pal
+
+# summary(blr_pal)
+
+### commented out to not include in data
+
+#get tidy version 
+
+blr_tidy <- broom::tidy(blr_pal)
+
+#remove intercept row from blr_tidy
+blr_tidier <- blr_tidy[-c(1),] %>% 
+  mutate(term = case_when(
+            term == "height" ~ "Height",
+            term == "width" ~ "Width", 
+            term == "length" ~ "Length",
+             term == "green_lvs" ~ "Green leaf count"))
+  
+blr_tidier <- blr_tidier %>% 
+  mutate(p.value = case_when(
+            p.value < .05 ~ "< .05"))
+
+```
+```{r, warning = FALSE, message = FALSE}
+#create a 
+blr_tidier %>% 
+  kable(col.names = c("Variable", "Coefficient", "Standard Error", "Z-statistic", "P-value" ), digits = 5) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+
+```{r, warning = FALSE, message = FALSE}
+#evaluate success of this model (>=50% is cutoff)
+blr_fitted <- blr_pal %>% 
+  augment(type.predict = "response")
+#select and compare predicted species vs actual species
+blr_fitted <- blr_fitted %>% 
+  mutate(prediction = 
+          case_when(.fitted >= .5 ~ "Serenoa repens",
+                    .fitted < .5 ~ "Sabal etonia"))
+blr_fitted <- blr_fitted %>% 
+  mutate(correct = 
+           case_when(prediction != species_names ~ "incorrect",
+                     prediction == species_names ~ "correct"))
+#set data up to be ready to be put in a table
+blr_table <- blr_fitted %>% 
+  select(species_names, correct) %>% 
+  group_by(species_names, correct) %>% 
+  count() %>% 
+  pivot_wider(
+    names_from = correct,
+    values_from = n)
+blr_table <- blr_table %>% 
+  mutate(percentage = correct/sum(correct,incorrect))
+
+#create table using Kable
+
+blr_table %>% 
+  kable(col.names = c("Species", "Number of correct", "Number incorrect", "Percentage Correct")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+  
+```
+
+
+## Citation: 
+
+Abrahamson, W.G. 2019. Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals ver 1. Environmental Data Initiative. [https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5](https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
