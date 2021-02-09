@@ -875,7 +875,7 @@ blr_table &lt;- blr_fitted %&gt;%
     names_from = correct,
     values_from = n)
 blr_table &lt;- blr_table %&gt;% 
-  mutate(percentage = correct/sum(correct,incorrect))
+  mutate(percentage = percent(correct/(incorrect + correct)))
 
 #create table using Kable
 
@@ -894,7 +894,7 @@ Number of correct
 <th style="text-align:right;">
 Number incorrect
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 Percentage Correct
 </th>
 </tr>
@@ -910,8 +910,8 @@ Sabal etonia
 <td style="text-align:right;">
 454
 </td>
-<td style="text-align:right;">
-0.9262388
+<td style="text-align:left;">
+93%
 </td>
 </tr>
 <tr>
@@ -924,8 +924,8 @@ Serenoa repens
 <td style="text-align:right;">
 564
 </td>
-<td style="text-align:right;">
-0.9077225
+<td style="text-align:left;">
+91%
 </td>
 </tr>
 </tbody>

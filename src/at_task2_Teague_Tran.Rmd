@@ -22,6 +22,7 @@ library(GGally)
 library(broom)
 library(jtools)
 library(kableExtra)
+library(scales)
 
 # read in data
 palmetto <- read_csv(here("data", "palmetto.csv"))
@@ -188,7 +189,7 @@ blr_table <- blr_fitted %>%
     names_from = correct,
     values_from = n)
 blr_table <- blr_table %>% 
-  mutate(percentage = correct/sum(correct,incorrect))
+  mutate(percentage = percent(correct/(incorrect + correct)))
 
 #create table using Kable
 
